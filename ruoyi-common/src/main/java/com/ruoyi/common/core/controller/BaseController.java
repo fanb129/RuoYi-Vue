@@ -3,8 +3,12 @@ package com.ruoyi.common.core.controller;
 import java.beans.PropertyEditorSupport;
 import java.util.Date;
 import java.util.List;
+
+import com.ruoyi.common.constant.Constants;
+import com.ruoyi.common.core.domain.entity.SysRole;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.InitBinder;
 import com.github.pagehelper.PageHelper;
@@ -198,5 +202,26 @@ public class BaseController
     public String getUsername()
     {
         return getLoginUser().getUsername();
+    }
+
+    /**
+     * 判断用户是否拥有某个角色
+     *
+     * @param role 角色字符串
+     * @return 用户是否具备某角色
+     */
+    public boolean hasRole(String role)
+    {
+        LoginUser loginUser = getLoginUser();
+
+        for (SysRole sysRole : loginUser.getUser().getRoles())
+        {
+            String roleKey = sysRole.getRoleKey();
+            if (Constants.SUPER_ADMIN.equals(roleKey) || roleKey.equals(StringUtils.trim(role)))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 }

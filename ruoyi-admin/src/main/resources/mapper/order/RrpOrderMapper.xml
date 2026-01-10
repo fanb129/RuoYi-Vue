@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.order.mapper.RrpOrderMapper">
+    
+    <resultMap type="RrpOrder" id="RrpOrderResult">
+        <result property="id"    column="id"    />
+        <result property="orderNo"    column="order_no"    />
+        <result property="itemId"    column="item_id"    />
+        <result property="itemName"    column="item_name"    />
+        <result property="sellerId"    column="seller_id"    />
+        <result property="buyerId"    column="buyer_id"    />
+        <result property="amount"    column="amount"    />
+        <result property="status"    column="status"    />
+        <result property="sellerNickName"    column="seller_nick_name"    />
+        <result property="buyerNickName"    column="buyer_nick_name"    />
+        <result property="itemType"    column="item_type"    />
+        <result property="createTime"    column="create_time"    />
+    </resultMap>
+
+    <sql id="selectRrpOrderVo">
+        select o.id, o.order_no, o.item_id, o.item_name, o.seller_id, o.buyer_id, o.amount, o.status, o.create_time,
+               seller.nick_name as seller_nick_name,
+               buyer.nick_name as buyer_nick_name,
+               i.type as item_type
+        from rrp_order o
+        left join sys_user seller on o.seller_id = seller.user_id
+        left join sys_user buyer on o.buyer_id = buyer.user_id
+        left join rrp_item i on o.item_id = i.id
+    </sql>
+
+    <select id="selectRrpOrderList" parameterType="RrpOrder" resultMap="RrpOrderResult">
+        <include refid="selectRrpOrderVo"/>
+        <where>  
+            <if test="orderNo != null  and orderNo != ''"> and o.order_no = #{orderNo}</if>
+            <if test="itemId != null "> and o.item_id = #{itemId}</if>
+            <if test="itemName != null  and itemName != ''"> and o.item_name like concat('%', #{itemName}, '%')</if>
+            <if test="sellerId != null "> and o.seller_id = #{sellerId}</if>
+            <if test="buyerId != null "> 
+                and (o.buyer_id = #{buyerId} or o.seller_id = #{buyerId})
+            </if>
+            <if test="amount != null "> and o.amount = #{amount}</if>
+            <if test="status != null  and status != ''"> and o.status = #{status}</if>
+        </where>
+    </select>
+    
+    <select id="selectRrpOrderById" parameterType="Long" resultMap="RrpOrderResult">
+        <include refid="selectRrpOrderVo"/>
+        where o.id = #{id}
+    </select>
+
+    <insert id="insertRrpOrder" parameterType="RrpOrder" useGeneratedKeys="true" keyProperty="id">
+        insert into rrp_order
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="orderNo != null and orderNo != ''">order_no,</if>
+            <if test="itemId != null">item_id,</if>
+            <if test="itemName != null">item_name,</if>
+            <if test="sellerId != null">seller_id,</if>
+            <if test="buyerId != null">buyer_id,</if>
+            <if test="amount != null">amount,</if>
+            <if test="status != null">status,</if>
+            <if test="createTime != null">create_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="orderNo != null and orderNo != ''">#{orderNo},</if>
+            <if test="itemId != null">#{itemId},</if>
+            <if test="itemName != null">#{itemName},</if>
+            <if test="sellerId != null">#{sellerId},</if>
+            <if test="buyerId != null">#{buyerId},</if>
+            <if test="amount != null">#{amount},</if>
+            <if test="status != null">#{status},</if>
+            <if test="createTime != null">#{createTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updateRrpOrder" parameterType="RrpOrder">
+        update rrp_order
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="orderNo != null and orderNo != ''">order_no = #{orderNo},</if>
+            <if test="itemId != null">item_id = #{itemId},</if>
+            <if test="itemName != null">item_name = #{itemName},</if>
+            <if test="sellerId != null">seller_id = #{sellerId},</if>
+            <if test="buyerId != null">buyer_id = #{buyerId},</if>
+            <if test="amount != null">amount = #{amount},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteRrpOrderById" parameterType="Long">
+        delete from rrp_order where id = #{id}
+    </delete>
+
+    <delete id="deleteRrpOrderByIds" parameterType="String">
+        delete from rrp_order where id in 
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

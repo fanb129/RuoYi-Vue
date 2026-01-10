@@ -80,6 +80,9 @@ public class Constants
      */
     public static final String SUPER_ADMIN = "admin";
 
+    public static final String RRP_ADMIN = "rrp_admin";
+    public static final String RRP_COMMON = "rrp_common";
+
     /**
      * 角色权限分隔符
      */

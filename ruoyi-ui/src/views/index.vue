@@ -1,72 +1,85 @@
 <template>
   <div class="app-container home">
-    <el-row :gutter="20">
-      <el-col :sm="24" :lg="12" style="padding-left: 20px">
-        <h2>若依后台管理框架</h2>
-        <p>
-          一直想做一款后台管理系统，看了很多优秀的开源项目但是发现没有合适自己的。于是利用空闲休息时间开始自己写一套后台系统。如此有了若依管理系统，她可以用于所有的Web应用程序，如网站管理后台，网站会员中心，CMS，CRM，OA等等，当然，您也可以对她进行深度定制，以做出更强系统。所有前端后台代码封装过后十分精简易上手，出错概率低。同时支持移动客户端访问。系统会陆续更新一些实用功能。
-        </p>
-        <p>
-          <b>当前版本:</b> <span>v{{ version }}</span>
-        </p>
-        <p>
-          <el-tag type="danger">&yen;免费开源</el-tag>
-        </p>
-        <p>
-          <el-button
-            type="primary"
-            size="mini"
-            icon="el-icon-cloudy"
-            plain
-            @click="goTarget('https://gitee.com/y_project/RuoYi-Vue')"
-            >访问码云</el-button
-          >
-          <el-button
-            size="mini"
-            icon="el-icon-s-home"
-            plain
-            @click="goTarget('http://ruoyi.vip')"
-            >访问主页</el-button
-          >
-        </p>
-      </el-col>
+    <!-- 搜索栏 -->
+    <el-form :model="queryParams" ref="queryForm" size="small" :inline="true" label-width="68px" class="search-form">
+      <el-form-item label="物品名称" prop="name">
+        <el-input
+          v-model="queryParams.name"
+          placeholder="请输入物品名称"
+          clearable
+          @keyup.enter.native="handleQuery"
+          style="width: 200px"
+        />
+      </el-form-item>
+      <el-form-item label="分类" prop="categoryId">
+        <el-select v-model="queryParams.categoryId" placeholder="请选择分类" clearable style="width: 150px">
+          <el-option
+            v-for="category in categoryOptions"
+            :key="category.id"
+            :label="category.name"
+            :value="category.id"
+          />
+        </el-select>
+      </el-form-item>
+      <el-form-item>
+        <el-button type="primary" icon="el-icon-search" size="mini" @click="handleQuery">搜索</el-button>
+        <el-button icon="el-icon-refresh" size="mini" @click="resetQuery">重置</el-button>
+      </el-form-item>
+    </el-form>
 
-      <el-col :sm="24" :lg="12" style="padding-left: 50px">
-        <el-row>
-          <el-col :span="12">
-            <h2>技术选型</h2>
-          </el-col>
-        </el-row>
-        <el-row>
-          <el-col :span="6">
-            <h4>后端技术</h4>
-            <ul>
-              <li>SpringBoot</li>
-              <li>Spring Security</li>
-              <li>JWT</li>
-              <li>MyBatis</li>
-              <li>Druid</li>
-              <li>Fastjson</li>
-              <li>...</li>
-            </ul>
-          </el-col>
-          <el-col :span="6">
-            <h4>前端技术</h4>
-            <ul>
-              <li>Vue</li>
-              <li>Vuex</li>
-              <li>Element-ui</li>
-              <li>Axios</li>
-              <li>Sass</li>
-              <li>Quill</li>
-              <li>...</li>
-            </ul>
-          </el-col>
-        </el-row>
+    <!-- 资源列表 -->
+    <el-row :gutter="20" v-loading="loading">
+      <el-col :xs="24" :sm="12" :md="8" :lg="6" v-for="item in itemList" :key="item.id" style="margin-bottom: 20px">
+        <el-card :body-style="{ padding: '0px' }" class="item-card">
+          <div class="item-image" v-if="item.image">
+            <image-preview :src="item.image" :width="100" :height="150" style="width: 100%; height: 200px; object-fit: cover;"/>
+          </div>
+          <div class="item-image" v-else style="width: 100%; height: 200px; background: #f5f5f5; display: flex; align-items: center; justify-content: center;">
+            <i class="el-icon-picture" style="font-size: 48px; color: #ccc;"></i>
+          </div>
+          <div style="padding: 14px;">
+            <div class="item-name">{{ item.name }}</div>
+            <div class="item-price">¥{{ item.price }}</div>
+            <div class="item-description" v-if="item.description">{{ item.description.length > 50 ? item.description.substring(0, 50) + '...' : item.description }}</div>
+            <div style="margin-top: 10px;">
+              <el-button type="primary" size="mini" @click="handlePurchase(item)" :disabled="!isLogin">购买</el-button>
+              <el-button type="info" size="mini" @click="handleViewDetail(item)">详情</el-button>
+            </div>
+          </div>
+        </el-card>
       </el-col>
     </el-row>
-    <el-divider />
-    <el-row :gutter="20">
+
+    <!-- 分页 -->
+    <pagination
+      v-show="total>0"
+      :total="total"
+      :page.sync="queryParams.pageNum"
+      :limit.sync="queryParams.pageSize"
+      @pagination="getList"
+    />
+
+    <!-- 详情对话框 -->
+    <el-dialog title="资源详情" :visible.sync="detailVisible" width="600px" append-to-body>
+      <div v-if="currentItem">
+        <el-row :gutter="20">
+          <el-col :span="12" v-if="currentItem.image">
+            <image-preview :src="currentItem.image" :width="200" :height="200"/>
+          </el-col>
+          <el-col :span="12">
+            <p><strong>物品名称：</strong>{{ currentItem.name }}</p>
+            <p><strong>价格：</strong>¥{{ currentItem.price }}</p>
+            <p><strong>描述：</strong>{{ currentItem.description || '暂无描述' }}</p>
+          </el-col>
+        </el-row>
+      </div>
+      <div slot="footer" class="dialog-footer">
+        <el-button type="primary" @click="handlePurchase(currentItem)" :disabled="!isLogin">购买</el-button>
+        <el-button @click="detailVisible = false">关闭</el-button>
+      </div>
+    </el-dialog>
+  </div>
+</template>
       <el-col :xs="24" :sm="24" :md="12" :lg="8">
         <el-card class="update-log">
           <div slot="header" class="clearfix">
@@ -1091,15 +1104,94 @@
 </template>
 
 <script>
+import { listPublicItem } from "@/api/item/item"
+import { listCategory } from "@/api/category/category"
+import { purchaseItem } from "@/api/order/order"
+
 export default {
   name: "Index",
   data() {
     return {
-      // 版本号
-      version: "3.9.1"
+      // 遮罩层
+      loading: true,
+      // 资源列表
+      itemList: [],
+      // 分类选项
+      categoryOptions: [],
+      // 总条数
+      total: 0,
+      // 查询参数
+      queryParams: {
+        pageNum: 1,
+        pageSize: 12,
+        name: null,
+        categoryId: null
+      },
+      // 详情对话框
+      detailVisible: false,
+      // 当前查看的物品
+      currentItem: null
     }
   },
+  computed: {
+    isLogin() {
+      return this.$store.state.user.token && this.$store.state.user.id
+    }
+  },
+  created() {
+    this.getList()
+    this.getCategoryList()
+  },
   methods: {
+    /** 查询资源列表 */
+    getList() {
+      this.loading = true
+      listPublicItem(this.queryParams).then(response => {
+        this.itemList = response.rows || []
+        this.total = response.total || 0
+        this.loading = false
+      }).catch(() => {
+        this.loading = false
+      })
+    },
+    /** 获取分类列表 */
+    getCategoryList() {
+      listCategory({}).then(response => {
+        this.categoryOptions = response.rows || []
+      })
+    },
+    /** 搜索按钮操作 */
+    handleQuery() {
+      this.queryParams.pageNum = 1
+      this.getList()
+    },
+    /** 重置按钮操作 */
+    resetQuery() {
+      this.resetForm("queryForm")
+      this.handleQuery()
+    },
+    /** 购买按钮操作 */
+    handlePurchase(item) {
+      if (!this.isLogin) {
+        this.$modal.msgWarning("请先登录")
+        return
+      }
+      if (this.$store.state.user.id === item.userId) {
+        this.$modal.msgWarning("不能购买自己发布的物品")
+        return
+      }
+      this.$modal.confirm('确认购买"' + item.name + '"？').then(() => {
+        purchaseItem({ itemId: item.id }).then(() => {
+          this.$modal.msgSuccess("购买成功，订单已生成")
+          this.getList()
+        })
+      }).catch(() => {})
+    },
+    /** 查看详情 */
+    handleViewDetail(item) {
+      this.currentItem = item
+      this.detailVisible = true
+    },
     goTarget(href) {
       window.open(href, "_blank")
     }
@@ -1109,51 +1201,56 @@ export default {
 
 <style scoped lang="scss">
 .home {
-  blockquote {
-    padding: 10px 20px;
-    margin: 0 0 20px;
-    font-size: 17.5px;
-    border-left: 5px solid #eee;
-  }
-  hr {
-    margin-top: 20px;
-    margin-bottom: 20px;
-    border: 0;
-    border-top: 1px solid #eee;
-  }
-  .col-item {
-    margin-bottom: 20px;
-  }
-
-  ul {
-    padding: 0;
-    margin: 0;
-  }
-
   font-family: "open sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-size: 13px;
   color: #676a6c;
   overflow-x: hidden;
 
-  ul {
-    list-style-type: none;
+  .search-form {
+    margin-bottom: 20px;
+    padding: 20px;
+    background: #fff;
+    border-radius: 4px;
   }
 
-  h4 {
-    margin-top: 0px;
-  }
+  .item-card {
+    height: 100%;
+    transition: all 0.3s;
+    cursor: pointer;
 
-  h2 {
-    margin-top: 10px;
-    font-size: 26px;
-    font-weight: 100;
-  }
+    &:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      transform: translateY(-2px);
+    }
 
-  p {
-    margin-top: 10px;
+    .item-image {
+      width: 100%;
+      overflow: hidden;
+    }
 
-    b {
-      font-weight: 700;
+    .item-name {
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 8px;
+      color: #333;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .item-price {
+      font-size: 20px;
+      color: #f56c6c;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .item-description {
+      font-size: 12px;
+      color: #999;
+      line-height: 1.5;
+      margin-bottom: 10px;
+      min-height: 36px;
     }
   }
 
