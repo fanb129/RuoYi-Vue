@@ -113,7 +113,9 @@
       </el-table-column>
       <el-table-column label="类型" align="center" prop="type">
         <template slot-scope="scope">
-          <dict-tag :options="dict.type.rrp_item_type" :value="scope.row.type"/>
+          <el-tag v-if="scope.row.type === '1'" type="success">共享出售</el-tag>
+          <el-tag v-else-if="scope.row.type === '2'" type="warning">官方回收</el-tag>
+          <span v-else>-</span>
         </template>
       </el-table-column>
       <el-table-column label="状态" align="center" prop="status">
@@ -141,7 +143,7 @@
         </template>
       </el-table-column>
     </el-table>
-    
+
     <pagination
       v-show="total>0"
       :total="total"
@@ -338,7 +340,7 @@ export default {
           const submitData = { ...this.form }
           // 不传status字段，让后端自动处理
           delete submitData.status
-          
+
           if (submitData.id != null) {
             updateItem(submitData).then(response => {
               this.$modal.msgSuccess("修改成功")

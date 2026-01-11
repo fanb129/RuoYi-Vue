@@ -43,9 +43,43 @@ public class RrpOrderController extends BaseController
     @GetMapping("/list")
     public TableDataInfo list(RrpOrder rrpOrder)
     {
-//        if(!hasRole(Constants.RRP_ADMIN)){
-//            rrpOrder.setSellerId(getUserId());
-//        }
+        startPage();
+        List<RrpOrder> list = rrpOrderService.selectRrpOrderList(rrpOrder);
+        return getDataTable(list);
+    }
+    /**
+     * 查询我买到的订单列表
+     */
+    @PreAuthorize("@ss.hasPermi('order:buyer:list')")
+    @GetMapping("/listBuyer")
+    public TableDataInfo listBuyer(RrpOrder rrpOrder)
+    {
+        rrpOrder.setBuyerId(getUserId());
+        startPage();
+        List<RrpOrder> list = rrpOrderService.selectRrpOrderList(rrpOrder);
+        return getDataTable(list);
+    }
+    /**
+     * 查询我卖出的订单列表
+     */
+    @PreAuthorize("@ss.hasPermi('order:seller:list')")
+    @GetMapping("/listSeller")
+    public TableDataInfo listSeller(RrpOrder rrpOrder)
+    {
+        rrpOrder.setSellerId(getUserId());
+        startPage();
+        List<RrpOrder> list = rrpOrderService.selectRrpOrderList(rrpOrder);
+        return getDataTable(list);
+    }
+
+    /**
+     * 查询我回收订单列表
+     */
+    @PreAuthorize("@ss.hasPermi('order:recycle:list')")
+    @GetMapping("/listAdmin")
+    public TableDataInfo listAdmin(RrpOrder rrpOrder)
+    {
+        rrpOrder.setItemType("2");
         startPage();
         List<RrpOrder> list = rrpOrderService.selectRrpOrderList(rrpOrder);
         return getDataTable(list);

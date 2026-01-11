@@ -38,7 +38,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="itemName != null  and itemName != ''"> and o.item_name like concat('%', #{itemName}, '%')</if>
             <if test="sellerId != null "> and o.seller_id = #{sellerId}</if>
             <if test="buyerId != null "> 
-                and (o.buyer_id = #{buyerId} or o.seller_id = #{buyerId})
+                and o.buyer_id = #{buyerId}
+            </if>
+            <if test="itemType != null and itemType != ''">
+                and i.type = #{itemType}
             </if>
             <if test="amount != null "> and o.amount = #{amount}</if>
             <if test="status != null  and status != ''"> and o.status = #{status}</if>

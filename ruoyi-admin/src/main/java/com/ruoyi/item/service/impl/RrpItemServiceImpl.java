@@ -91,7 +91,7 @@ public class RrpItemServiceImpl implements IRrpItemService
             order.setItemName(rrpItem.getName());
             order.setSellerId(rrpItem.getUserId());
             // 官方回收时，buyerId暂时为空，等待管理员处理
-            order.setBuyerId(null);
+            order.setBuyerId(1L);
             order.setAmount(rrpItem.getPrice());
             order.setStatus("0"); // 0=进行中
             rrpOrderService.insertRrpOrder(order);
@@ -112,14 +112,13 @@ public class RrpItemServiceImpl implements IRrpItemService
     {
         // 获取原商品信息
         RrpItem oldItem = rrpItemMapper.selectRrpItemById(rrpItem.getId());
-        
         // 如果前端没有传status，或者status为空，则根据类型自动设置
         if (rrpItem.getStatus() == null || rrpItem.getStatus().isEmpty()) {
             if (oldItem != null) {
                 // 如果原状态是已售出或已回收（status=1），保持原状态不变
                 // 因为已售出/已回收的商品不应该再改变状态
                 if ("1".equals(oldItem.getStatus())) {
-                    rrpItem.setStatus("1");
+                    throw new RuntimeException("已售出商品不支持修改");
                 } else {
                     // 否则根据新类型设置状态（上架或待回收）
                     if ("1".equals(rrpItem.getType())) {

@@ -1,7 +1,7 @@
 {
   "name": "ruoyi",
   "version": "3.9.1",
-  "description": "若依管理系统",
+  "description": "校园低碳闲置资源回收利用共享平台",
   "author": "若依",
   "license": "MIT",
   "scripts": {

@@ -60,16 +60,16 @@
 <!--          v-hasPermi="['order:order:add']"-->
 <!--        >新增</el-button>-->
 <!--      </el-col>-->
-<!--      <el-col :span="1.5">-->
-<!--        <el-button-->
-<!--          type="success"-->
-<!--          plain-->
-<!--          icon="el-icon-check"-->
-<!--          size="mini"-->
-<!--          :disabled="single"-->
-<!--          @click="handleConfirmReceive"-->
-<!--          v-hasPermi="['order:order:edit']"-->
-<!--        >确认收货</el-button>-->
+      <el-col :span="1.5">
+        <el-button
+          type="success"
+          plain
+          icon="el-icon-check"
+          size="mini"
+          :disabled="single"
+          @click="handleConfirmReceive"
+          v-hasPermi="['order:order:edit']"
+        >确认回收</el-button>
       </el-col>
       <el-col :span="1.5">
         <el-button
@@ -107,7 +107,6 @@
           <span v-else>-</span>
         </template>
       </el-table-column>
-      <el-table-column label="买家昵称" align="center" prop="buyerNickName" />
       <el-table-column label="卖家昵称" align="center" prop="sellerNickName" />
       <el-table-column label="交易金额" align="center" prop="amount" />
       <el-table-column label="状态" align="center" prop="status">
@@ -117,14 +116,14 @@
       </el-table-column>
       <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
         <template slot-scope="scope">
-<!--          <el-button-->
-<!--            v-if="scope.row.status === '0'"-->
-<!--            size="mini"-->
-<!--            type="text"-->
-<!--            icon="el-icon-check"-->
-<!--            @click="handleConfirmReceive(scope.row)"-->
-<!--            v-hasPermi="['order:order:edit']"-->
-<!--          >确认收货</el-button>-->
+          <el-button
+            v-if="scope.row.status === '0'"
+            size="mini"
+            type="text"
+            icon="el-icon-check"
+            @click="handleConfirmReceive(scope.row)"
+            v-hasPermi="['order:order:edit']"
+          >确认回收</el-button>
           <el-button
             size="mini"
             type="text"
@@ -184,7 +183,16 @@
 </template>
 
 <script>
-import { listOrder, getOrder, delOrder, addOrder, updateOrder, confirmReceive } from "@/api/order/order"
+import {
+  listOrder,
+  getOrder,
+  delOrder,
+  addOrder,
+  updateOrder,
+  confirmReceive,
+  listOrderBuyer,
+  listOrderAdmin
+} from "@/api/order/order"
 
 export default {
   name: "Order",
@@ -258,7 +266,7 @@ export default {
     /** 查询订单列表 */
     getList() {
       this.loading = true
-      listOrder(this.queryParams).then(response => {
+      listOrderAdmin(this.queryParams).then(response => {
         this.orderList = response.rows
         this.total = response.total
         this.loading = false
@@ -306,18 +314,18 @@ export default {
       this.open = true
       this.title = "添加订单"
     },
-    /** 确认收货操作 */
+    /** 确认回收操作 */
     handleConfirmReceive(row) {
       const id = row ? row.id : (this.ids.length === 1 ? this.ids[0] : null)
       if (!id) {
-        this.$modal.msgWarning("请选择要确认收货的订单")
+        this.$modal.msgWarning("请选择要确认回收的订单")
         return
       }
-      this.$modal.confirm('确认收货订单编号为"' + (row ? row.orderNo : id) + '"？').then(() => {
+      this.$modal.confirm('确认回收订单编号为"' + (row ? row.orderNo : id) + '"？').then(() => {
         return confirmReceive(id)
       }).then(() => {
         this.getList()
-        this.$modal.msgSuccess("确认收货成功")
+        this.$modal.msgSuccess("确认回收成功")
       }).catch(() => {})
     },
     /** 提交按钮 */

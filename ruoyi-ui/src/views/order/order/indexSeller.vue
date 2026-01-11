@@ -70,7 +70,7 @@
 <!--          @click="handleConfirmReceive"-->
 <!--          v-hasPermi="['order:order:edit']"-->
 <!--        >确认收货</el-button>-->
-      </el-col>
+<!--      </el-col>-->
       <el-col :span="1.5">
         <el-button
           type="danger"
@@ -108,7 +108,6 @@
         </template>
       </el-table-column>
       <el-table-column label="买家昵称" align="center" prop="buyerNickName" />
-      <el-table-column label="卖家昵称" align="center" prop="sellerNickName" />
       <el-table-column label="交易金额" align="center" prop="amount" />
       <el-table-column label="状态" align="center" prop="status">
         <template slot-scope="scope">
@@ -184,7 +183,7 @@
 </template>
 
 <script>
-import { listOrder, getOrder, delOrder, addOrder, updateOrder, confirmReceive } from "@/api/order/order"
+import {listOrder, getOrder, delOrder, addOrder, updateOrder, confirmReceive, listOrderSeller} from "@/api/order/order"
 
 export default {
   name: "Order",
@@ -258,7 +257,7 @@ export default {
     /** 查询订单列表 */
     getList() {
       this.loading = true
-      listOrder(this.queryParams).then(response => {
+      listOrderSeller(this.queryParams).then(response => {
         this.orderList = response.rows
         this.total = response.total
         this.loading = false

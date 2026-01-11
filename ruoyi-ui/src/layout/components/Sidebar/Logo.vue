@@ -38,7 +38,7 @@ export default {
   },
   data() {
     return {
-      title: process.env.VUE_APP_TITLE,
+      title: '资源回收平台',
       logo: logoImg
     }
   }

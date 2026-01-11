@@ -8,6 +8,27 @@ export function listOrder(query) {
     params: query
   })
 }
+export function listOrderBuyer(query) {
+  return request({
+    url: '/order/order/listBuyer',
+    method: 'get',
+    params: query
+  })
+}
+export function listOrderSeller(query) {
+  return request({
+    url: '/order/order/listSeller',
+    method: 'get',
+    params: query
+  })
+}
+export function listOrderAdmin(query) {
+  return request({
+    url: '/order/order/listAdmin',
+    method: 'get',
+    params: query
+  })
+}
 
 // 查询订单详细
 export function getOrder(id) {

@@ -47,6 +47,10 @@ public class RrpOrder extends BaseEntity
     @Excel(name = "状态", readConverterExp = "0==进行中,,1==已完成")
     private String status;
 
+    /** 身份（1=买家, 2=卖家, 3=官方回收, 4=其它） */
+    @Excel(name = "状态", readConverterExp = "1==买家,,2==卖家,,3==官方回收,,4==其它")
+    private String identity;
+
     /** 卖家昵称（关联查询） */
     private String sellerNickName;
 
@@ -56,6 +60,16 @@ public class RrpOrder extends BaseEntity
     /** 物品类型（关联查询，1=共享出售, 2=官方回收） */
     private String itemType;
 
+    /** 请求参数：当前查询用户的ID（非数据库字段） */
+    private Long currentUserId;
+
+    public Long getCurrentUserId() {
+        return currentUserId;
+    }
+
+    public void setCurrentUserId(Long currentUserId) {
+        this.currentUserId = currentUserId;
+    }
     public void setId(Long id) 
     {
         this.id = id;

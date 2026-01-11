@@ -7,7 +7,7 @@ function resolve(dir) {
 
 const CompressionPlugin = require('compression-webpack-plugin')
 
-const name = process.env.VUE_APP_TITLE || '若依管理系统' // 网页标题
+const name = '校园低碳闲置资源回收利用共享平台' // 网页标题
 
 const baseUrl = 'http://localhost:8080' // 后端接口
 

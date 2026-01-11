@@ -49,17 +49,6 @@ public class RrpOrderServiceImpl implements IRrpOrderService
     @Override
     public List<RrpOrder> selectRrpOrderList(RrpOrder rrpOrder)
     {
-        // 如果不是管理员，只查询当前用户作为买家或卖家的订单
-        // 通过设置buyerId，Mapper中的条件会匹配buyerId或sellerId
-        if (!SecurityUtils.isAdmin())
-        {
-            Long userId = SecurityUtils.getUserId();
-            // 如果查询条件中没有指定sellerId和buyerId，则自动添加当前用户的限制
-            if (rrpOrder.getSellerId() == null && rrpOrder.getBuyerId() == null)
-            {
-                rrpOrder.setBuyerId(userId);
-            }
-        }
         return rrpOrderMapper.selectRrpOrderList(rrpOrder);
     }
 
@@ -186,16 +175,10 @@ public class RrpOrderServiceImpl implements IRrpOrderService
         // 更新订单状态为已完成
         order.setStatus("1");
         int result = rrpOrderMapper.updateRrpOrder(order);
-        
-        // 如果是官方回收订单（buyerId为空），更新物品状态为已回收
-        if (result > 0 && order.getBuyerId() == null && order.getItemId() != null) {
-            RrpItem item = rrpItemService.selectRrpItemById(order.getItemId());
-            if (item != null && "2".equals(item.getType())) {
-                // 官方回收订单，更新物品状态为已回收
-                item.setStatus("1"); // 1=已回收
-                rrpItemService.updateRrpItem(item);
-            }
-        }
+
+        RrpItem item = rrpItemService.selectRrpItemById(order.getItemId());
+        item.setStatus("1"); // 1=已完成
+        rrpItemService.updateRrpItem(item);
         
         return result;
     }

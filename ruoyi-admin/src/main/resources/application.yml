@@ -7,8 +7,7 @@ ruoyi:
   # 版权年份
   copyrightYear: 2026
   # 文件路径 示例（ Windows配置D:/ruoyi/uploadPath，Linux配置 /home/ruoyi/uploadPath）
-  # ResourceRecyclingPlatform修改这里
-  profile: C:/Users/fanb/src/ResourceRecyclingPlatform/uploadPath
+  profile: /Users/fanb/src/ResourceRecyclingPlatform/uploadPath # ResourceRecyclingPlatform修改这里
   # 获取ip地址开关
   addressEnabled: false
   # 验证码类型 math 数字计算 char 字符验证
