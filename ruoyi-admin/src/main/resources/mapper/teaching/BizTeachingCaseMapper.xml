@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.teaching.mapper.BizTeachingCaseMapper">
+    
+    <resultMap type="BizTeachingCase" id="BizTeachingCaseResult">
+        <result property="caseId"    column="case_id"    />
+        <result property="caseName"    column="case_name"    />
+        <result property="caseType"    column="case_type"    />
+        <result property="graphData"    column="graph_data"    />
+        <result property="nodeCount"    column="node_count"    />
+        <result property="edgeCount"    column="edge_count"    />
+        <result property="createBy"    column="create_by"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"    column="update_by"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"    column="remark"    />
+    </resultMap>
+
+    <sql id="selectBizTeachingCaseVo">
+        select case_id, case_name, case_type, graph_data, node_count, edge_count, create_by, create_time, update_by, update_time, remark from biz_teaching_case
+    </sql>
+
+    <select id="selectBizTeachingCaseList" parameterType="BizTeachingCase" resultMap="BizTeachingCaseResult">
+        <include refid="selectBizTeachingCaseVo"/>
+        <where>  
+            <if test="caseName != null  and caseName != ''"> and case_name like concat('%', #{caseName}, '%')</if>
+            <if test="caseType != null  and caseType != ''"> and case_type = #{caseType}</if>
+        </where>
+    </select>
+    
+    <select id="selectBizTeachingCaseByCaseId" parameterType="Long" resultMap="BizTeachingCaseResult">
+        <include refid="selectBizTeachingCaseVo"/>
+        where case_id = #{caseId}
+    </select>
+
+    <insert id="insertBizTeachingCase" parameterType="BizTeachingCase" useGeneratedKeys="true" keyProperty="caseId">
+        insert into biz_teaching_case
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="caseName != null and caseName != ''">case_name,</if>
+            <if test="caseType != null">case_type,</if>
+            <if test="graphData != null and graphData != ''">graph_data,</if>
+            <if test="nodeCount != null">node_count,</if>
+            <if test="edgeCount != null">edge_count,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="caseName != null and caseName != ''">#{caseName},</if>
+            <if test="caseType != null">#{caseType},</if>
+            <if test="graphData != null and graphData != ''">#{graphData},</if>
+            <if test="nodeCount != null">#{nodeCount},</if>
+            <if test="edgeCount != null">#{edgeCount},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateBizTeachingCase" parameterType="BizTeachingCase">
+        update biz_teaching_case
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="caseName != null and caseName != ''">case_name = #{caseName},</if>
+            <if test="caseType != null">case_type = #{caseType},</if>
+            <if test="graphData != null and graphData != ''">graph_data = #{graphData},</if>
+            <if test="nodeCount != null">node_count = #{nodeCount},</if>
+            <if test="edgeCount != null">edge_count = #{edgeCount},</if>
+            <if test="createBy != null">create_by = #{createBy},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where case_id = #{caseId}
+    </update>
+
+    <delete id="deleteBizTeachingCaseByCaseId" parameterType="Long">
+        delete from biz_teaching_case where case_id = #{caseId}
+    </delete>
+
+    <delete id="deleteBizTeachingCaseByCaseIds" parameterType="String">
+        delete from biz_teaching_case where case_id in 
+        <foreach item="caseId" collection="array" open="(" separator="," close=")">
+            #{caseId}
+        </foreach>
+    </delete>
+</mapper>

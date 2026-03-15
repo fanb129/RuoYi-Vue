@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.graph.mapper.BizUserGraphMapper">
+    
+    <resultMap type="BizUserGraph" id="BizUserGraphResult">
+        <result property="graphId"    column="graph_id"    />
+        <result property="graphName"    column="graph_name"    />
+        <result property="graphData"    column="graph_data"    />
+        <result property="nodeCount"    column="node_count"    />
+        <result property="edgeCount"    column="edge_count"    />
+        <result property="userId"    column="user_id"    />
+        <result property="createBy"    column="create_by"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"    column="update_by"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"    column="remark"    />
+    </resultMap>
+
+    <sql id="selectBizUserGraphVo">
+        select graph_id, graph_name, graph_data, node_count, edge_count, user_id, create_by, create_time, update_by, update_time, remark from biz_user_graph
+    </sql>
+
+    <select id="selectBizUserGraphList" parameterType="BizUserGraph" resultMap="BizUserGraphResult">
+        <include refid="selectBizUserGraphVo"/>
+        <where>  
+            <if test="graphName != null  and graphName != ''"> and graph_name like concat('%', #{graphName}, '%')</if>
+            <if test="userId != null "> and user_id = #{userId}</if>
+        </where>
+    </select>
+    
+    <select id="selectBizUserGraphByGraphId" parameterType="Long" resultMap="BizUserGraphResult">
+        <include refid="selectBizUserGraphVo"/>
+        where graph_id = #{graphId}
+    </select>
+
+    <insert id="insertBizUserGraph" parameterType="BizUserGraph" useGeneratedKeys="true" keyProperty="graphId">
+        insert into biz_user_graph
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="graphName != null and graphName != ''">graph_name,</if>
+            <if test="graphData != null">graph_data,</if>
+            <if test="nodeCount != null">node_count,</if>
+            <if test="edgeCount != null">edge_count,</if>
+            <if test="userId != null">user_id,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="graphName != null and graphName != ''">#{graphName},</if>
+            <if test="graphData != null">#{graphData},</if>
+            <if test="nodeCount != null">#{nodeCount},</if>
+            <if test="edgeCount != null">#{edgeCount},</if>
+            <if test="userId != null">#{userId},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateBizUserGraph" parameterType="BizUserGraph">
+        update biz_user_graph
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="graphName != null and graphName != ''">graph_name = #{graphName},</if>
+            <if test="graphData != null">graph_data = #{graphData},</if>
+            <if test="nodeCount != null">node_count = #{nodeCount},</if>
+            <if test="edgeCount != null">edge_count = #{edgeCount},</if>
+            <if test="userId != null">user_id = #{userId},</if>
+            <if test="createBy != null">create_by = #{createBy},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where graph_id = #{graphId}
+    </update>
+
+    <delete id="deleteBizUserGraphByGraphId" parameterType="Long">
+        delete from biz_user_graph where graph_id = #{graphId}
+    </delete>
+
+    <delete id="deleteBizUserGraphByGraphIds" parameterType="String">
+        delete from biz_user_graph where graph_id in 
+        <foreach item="graphId" collection="array" open="(" separator="," close=")">
+            #{graphId}
+        </foreach>
+    </delete>
+</mapper>

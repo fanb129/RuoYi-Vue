@@ -75,7 +75,7 @@ export default {
       footerContent: defaultSettings.footerContent,
       codeUrl: "",
       loginForm: {
-        username: "admin",
+        username: "ry_admin",
         password: "admin123",
         rememberMe: false,
         code: "",
@@ -94,7 +94,7 @@ export default {
       // 验证码开关
       captchaEnabled: true,
       // 注册开关
-      register: false,
+      register: true,
       redirect: undefined
     }
   },
