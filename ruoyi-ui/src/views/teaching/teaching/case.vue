@@ -92,7 +92,6 @@
             type="text"
             icon="el-icon-edit"
             @click="handleLook(scope.row)"
-            v-hasPermi="['teaching:teaching:edit']"
           >查看</el-button>
 <!--          <el-button-->
 <!--            size="mini"-->

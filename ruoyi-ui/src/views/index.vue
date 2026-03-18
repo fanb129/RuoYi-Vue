@@ -71,13 +71,23 @@
           </template>
 
           <template v-else-if="currentNode && currentNode.type === 'edge'">
-            <div class="info-item">当前选中：<b>连线 (边)</b></div>
-            <div class="info-item">节点度数：<b>-</b></div>
+            <div class="info-item" style="display: flex; align-items: center;">
+              连线权重：
+              <el-input
+                v-model.number="currentNode.weight"
+                size="small"
+                style="width: 140px; margin-left: 10px;"
+                placeholder="请输入数字权重"
+                @change="updateEdgeWeight"
+                @keyup.enter.native="updateEdgeWeight"
+              ></el-input>
+            </div>
+<!--            <div class="info-item">节点度数：<b>-</b></div>-->
           </template>
 
           <template v-else>
             <div class="info-item">当前选中：<b>未选中任何元素</b></div>
-            <div class="info-item">节点度数：<b>-</b></div>
+<!--            <div class="info-item">节点度数：<b>-</b></div>-->
           </template>
         </el-card>
 
@@ -88,6 +98,7 @@
           <el-select v-model="selectedAlgorithm" placeholder="请选择经典算法" size="small" style="width: 100%; margin-bottom: 15px;">
             <el-option label="广度优先搜索 (BFS)" value="bfs"></el-option>
             <el-option label="深度优先搜索 (DFS)" value="dfs"></el-option>
+            <el-option label="Dijkstra 最短路径" value="dijkstra"></el-option>
           </el-select>
           <div class="algo-controls">
             <el-button
@@ -155,7 +166,7 @@ export default {
   data() {
     return {
       graph: null,
-      isAdmin: true,
+      isAdmin: false,
       isEdgeMode: false, // 是否处于连线模式
       isSimulating: false,
       algoSteps: [],       // 存放算法解析出来的所有步骤路径
@@ -179,6 +190,12 @@ export default {
       currentGraphDetail: null, // 如果是从【我的图库】跳转来，存图库详情
       currentCaseDetail: null,  // 如果是从【教学案例】跳转来，存案例详情
     };
+  },
+  created() {
+    // 若依框架中，当前用户的角色数组存在 this.$store.getters.roles 里
+    // 取出角色数组，判断里面是否包含 'admin'
+    const roles = this.$store.getters.roles || [];
+    this.isAdmin = roles.includes('admin') || roles.includes('sys_admin');
   },
   mounted() {
     this.initGraph();
@@ -205,12 +222,19 @@ export default {
         },
         defaultEdge: {
           type: 'line',
+          label: '1', // 【关键】给每一条新创建出来的线一个默认权重 1
           style: {
             stroke: '#A3B1BF',
             lineWidth: 2,
             endArrow: true,
             cursor: 'pointer',
-            lineAppendWidth: 15 // 【核心修复】：增加 15px 的隐形点击热区，让边极其容易被点中！
+            lineAppendWidth: 15 // 保持这个隐形点击热区
+          },
+          // 【新增】配置权重文字显示的样式和位置
+          labelCfg: {
+            autoRotate: true, // 文字随连线角度自动旋转，不会倒着显示
+            refY: -10, // 文字距离连线本体向上偏移 10px，防止压线
+            style: { fill: '#333', fontSize: 13, fontWeight: 'bold' }
           }
         },
         nodeStateStyles: {
@@ -262,11 +286,14 @@ export default {
         this.clearAllSelected();
         this.graph.setItemState(e.item, 'selected', true);
 
+        const item = e.item;
+        const model = item.getModel(); // 获取边的底层数据模型
+
         this.currentNode = {
-          id: e.item.getID(),
-          label: '边',
-          degree: '-',
-          type: 'edge' // 【新增】：告诉右侧面板这是一条边
+          id: model.id,
+          // 【核心】：获取 G6 边的 label（即权重），如果没有，默认给个 1 字符串
+          weight: model.label || '1',
+          type: 'edge' // 告诉面板这是一个边
         };
       });
 
@@ -324,6 +351,31 @@ export default {
           label: this.currentNode.label
         });
         this.$message.success('名称修改成功！');
+      }
+    },
+    updateEdgeWeight() {
+      // 严谨校验：确保当前真的选中了一条边，且输入框有值
+      if (!this.currentNode || this.currentNode.type !== 'edge') return;
+
+      // 输入校验：因为权重在 Dijkstra 算法里必须是数字（通常是非负数）
+      if (this.currentNode.weight === '' || isNaN(this.currentNode.weight)) {
+        this.$message.warning('连线权重必须是数字');
+        // 将输入框重置回画布上的旧值
+        const item = this.graph.findById(this.currentNode.id);
+        this.currentNode.weight = item.getModel().label;
+        return;
+      }
+
+      // 1. 找到对应的真实连线对象
+      const item = this.graph.findById(this.currentNode.id);
+
+      if (item) {
+        // 2. 核心 API：局部更新边的属性 label（这里我们把它当作“权重”来用）
+        // 在存入底层前，最好转成字符串，防止 G6 警告
+        this.graph.updateItem(item, {
+          label: String(this.currentNode.weight)
+        });
+        this.$message.success('连线权重修改成功！');
       }
     },
     handleUpdateGraph() {
@@ -505,51 +557,124 @@ export default {
       if (!this.currentNode || this.currentNode.label === '边') {
         return this.$message.warning('请先在画布上点击选中一个【起始节点】！');
       }
-      if (this.selectedAlgorithm !== 'bfs') {
-        return this.$message.info('目前只演示了 BFS 广度优先搜索，其他算法可依葫芦画瓢添加~');
-      }
 
       this.resetAlgorithm(); // 清空历史颜色
       this.algoSteps = [];   // 清空步骤池
       this.currentStepIndex = 0;
 
-      // --- 核心：BFS 广度优先搜索算法的前端实现 ---
       const startNodeId = this.currentNode.id;
-      const startNodeItem = this.graph.findById(startNodeId); // 根据 ID 获取 G6 节点对象
+      const startNodeItem = this.graph.findById(startNodeId);
 
-      const queue = [startNodeItem];          // BFS 的核心数据结构：队列
-      const visitedNodes = new Set([startNodeId]); // 记录已访问的节点防死循环
-      const visitedEdges = new Set();         // 记录已访问的边
+      // ==============================================================
+      // 算法 1：BFS (广度优先搜索) - 像水波一样层层扩散
+      // ==============================================================
+      if (this.selectedAlgorithm === 'bfs') {
+        const queue = [startNodeItem];
+        const visitedNodes = new Set([startNodeId]);
+        const visitedEdges = new Set();
 
-      // 只要队列不为空，就一直往外扩
-      while (queue.length > 0) {
-        const currNode = queue.shift();
-        this.algoSteps.push({ type: 'node', item: currNode });
-
-        // 如果是无向图，才使用 currNode.getEdges()
-        const outEdges = currNode.getOutEdges();
-
-        for (let edge of outEdges) {
-          const edgeId = edge.getID();
-
-          if (!visitedEdges.has(edgeId)) {
-            visitedEdges.add(edgeId);
-            this.algoSteps.push({ type: 'edge', item: edge });
-
-            // 因为是“指出”的边，所以邻居必然是这条边的 target（终点）
-            const neighbor = edge.getTarget();
-
-            if (!visitedNodes.has(neighbor.getID())) {
-              visitedNodes.add(neighbor.getID());
-              queue.push(neighbor);
+        while (queue.length > 0) {
+          const currNode = queue.shift();
+          this.algoSteps.push({ type: 'node', item: currNode });
+          const outEdges = currNode.getOutEdges();
+          for (let edge of outEdges) {
+            const edgeId = edge.getID();
+            if (!visitedEdges.has(edgeId)) {
+              visitedEdges.add(edgeId);
+              this.algoSteps.push({ type: 'edge', item: edge });
+              const neighbor = edge.getTarget();
+              if (!visitedNodes.has(neighbor.getID())) {
+                visitedNodes.add(neighbor.getID());
+                queue.push(neighbor);
+              }
             }
           }
+        }
+      }
+        // ==============================================================
+        // 算法 2：DFS (深度优先搜索) - 沿一条路走到黑，撞墙再回头
+      // ==============================================================
+      else if (this.selectedAlgorithm === 'dfs') {
+        const visitedNodes = new Set();
+        const visitedEdges = new Set();
+
+        // 内部定义一个递归函数来实现 DFS
+        const dfsTraverse = (node) => {
+          visitedNodes.add(node.getID());
+          this.algoSteps.push({ type: 'node', item: node });
+
+          const outEdges = node.getOutEdges();
+          for (let edge of outEdges) {
+            const neighbor = edge.getTarget();
+            // 如果这条边没走过，且对面的节点也没去过，就深入进去
+            if (!visitedNodes.has(neighbor.getID())) {
+              visitedEdges.add(edge.getID());
+              this.algoSteps.push({ type: 'edge', item: edge });
+              dfsTraverse(neighbor); // 递归深入
+            }
+          }
+        };
+
+        dfsTraverse(startNodeItem);
+      }
+        // ==============================================================
+        // 算法 3：Dijkstra 最短路径 - 结合“连线权重”的核心亮点
+      // ==============================================================
+      else if (this.selectedAlgorithm === 'dijkstra') {
+        const dist = {};       // 记录起点到各个节点的最短距离
+        const visited = new Set(); // 记录已经确定最短路径的节点
+        const parentEdge = {}; // 记录是通过哪条边来到这个节点的（用于画路径）
+
+        // 初始化：所有节点距离设为无穷大，起点设为 0
+        this.graph.getNodes().forEach(n => dist[n.getID()] = Infinity);
+        dist[startNodeId] = 0;
+
+        // 经典的 Dijkstra 循环
+        while (true) {
+          let u = null;
+          let minDist = Infinity;
+
+          // 1. 在未访问的节点中，找一个距离起点最近的节点 u
+          this.graph.getNodes().forEach(n => {
+            const id = n.getID();
+            if (!visited.has(id) && dist[id] < minDist) {
+              minDist = dist[id];
+              u = n;
+            }
+          });
+
+          // 如果找不到，或者剩下的节点都不可达，算法结束
+          if (!u) break;
+
+          // 2. 将找到的最优节点 u 标记为已访问
+          visited.add(u.getID());
+
+          // 记录动画步骤：点亮让我们来到节点 u 的那条边 (如果是起点则没有 parentEdge)
+          if (parentEdge[u.getID()]) {
+            this.algoSteps.push({ type: 'edge', item: parentEdge[u.getID()] });
+          }
+          // 记录动画步骤：点亮节点 u
+          this.algoSteps.push({ type: 'node', item: u });
+
+          // 3. 核心松弛操作：遍历节点 u 指出去的所有边，看看能不能让邻居离起点更近
+          u.getOutEdges().forEach(edge => {
+            const v = edge.getTarget();
+            if (!visited.has(v.getID())) {
+              // 划重点：这里直接读取你刚才做的边权重 (label)，如果没有就默认是 1
+              const weight = parseFloat(edge.getModel().label) || 1;
+
+              if (dist[u.getID()] + weight < dist[v.getID()]) {
+                dist[v.getID()] = dist[u.getID()] + weight; // 更新最短距离
+                parentEdge[v.getID()] = edge;               // 记住这是更优的路
+              }
+            }
+          });
         }
       }
 
       // 解析完成后，切换系统状态
       this.isSimulating = true;
-      this.$message.success('BFS 路径解析完成！请点击【下一步】观察扩散过程。');
+      this.$message.success(`${this.selectedAlgorithm.toUpperCase()} 路径解析完成！请点击【下一步】观察过程。`);
 
       // 自动先亮起第一个节点（起点）
       this.stepForward();

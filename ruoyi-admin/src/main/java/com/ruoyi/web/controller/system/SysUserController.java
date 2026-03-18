@@ -62,6 +62,7 @@ public class SysUserController extends BaseController
     {
         startPage();
         List<SysUser> list = userService.selectUserList(user);
+        // 过滤掉uid为1的用户
         return getDataTable(list);
     }
 

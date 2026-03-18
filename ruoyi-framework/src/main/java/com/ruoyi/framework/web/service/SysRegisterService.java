@@ -79,7 +79,6 @@ public class SysRegisterService
             sysUser.setNickName(username);
             sysUser.setPwdUpdateDate(DateUtils.getNowDate());
             sysUser.setPassword(SecurityUtils.encryptPassword(password));
-            sysUser.setRoleId((long) 2);
             boolean regFlag = userService.registerUser(sysUser);
             if (!regFlag)
             {
@@ -87,6 +86,18 @@ public class SysRegisterService
             }
             else
             {
+                Long[] defaultRoleIds = { 2L };
+
+                // 2. 将刚生成的 userId 赋值给 sysUser (这一步 userService.registerUser 通常已经帮你做了，这里确认一下)
+                Long userId = sysUser.getUserId();
+
+                // 3. 将默认角色 ID 数组设置进 sysUser 对象
+                sysUser.setRoleIds(defaultRoleIds);
+
+                // 4. 调用用户服务层的 insertUserRole 方法，向 sys_user_role 表插入关联数据
+                // 若依原有的 insertUserRole 方法就是干这个的
+//                userService.insertUserRole(sysUser);
+                userService.insertUserAuth(userId, defaultRoleIds);
                 AsyncManager.me().execute(AsyncFactory.recordLogininfor(username, Constants.REGISTER, MessageUtils.message("user.register.success")));
             }
         }
