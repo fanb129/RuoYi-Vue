@@ -10,3 +10,9 @@
    - src/main/resources/logback.xml 第4行
 4. 启动后端：src/main/java/com/ruoyi/RuoYiApplication.java 
 5. 启动前端：进入ruoyi-ui目录，运行npm install 安装依赖，运行 npm run dev 启动前端
+
+TODO
+1，给节点加上不同的形状（方形三角形.）√
+2，能给节点和线变颜色 √
+3，节点和节点之间的自动对齐 √
+4，能直接添加一些模型（应该是指能直接添加一个二分图和树这种）

@@ -11,6 +11,21 @@
           {{ isEdgeMode ? '退出连线模式' : '进入连线模式' }}
         </el-button>
         <el-button type="danger" icon="el-icon-delete" size="small" @click="deleteSelected">删除选中</el-button>
+        <el-dropdown @command="alignNodes" style="margin: 0 10px;">
+          <el-button type="info" size="small">
+            对齐方式 <i class="el-icon-arrow-down el-icon--right"></i>
+          </el-button>
+          <el-dropdown-menu slot="dropdown">
+            <el-dropdown-item command="top">顶部对齐</el-dropdown-item>
+            <el-dropdown-item command="bottom">底部对齐</el-dropdown-item>
+            <el-dropdown-item command="left">左侧对齐</el-dropdown-item>
+            <el-dropdown-item command="right">右侧对齐</el-dropdown-item>
+            <el-dropdown-item command="center">水平居中对齐</el-dropdown-item>
+          </el-dropdown-menu>
+        </el-dropdown>
+        <span style="font-size: 13px; color: #909399; margin-right: 15px;">
+          <i class="el-icon-info"></i> 提示：按住 <b style="color: #409EFF;">Shift</b> 键框选多个节点即可对齐
+        </span>
         <el-button type="warning" icon="el-icon-refresh-left" size="small" @click="clearCanvas">清空画布</el-button>
       </el-button-group>
 
@@ -58,14 +73,20 @@
           <template v-if="currentNode && currentNode.type === 'node'">
             <div class="info-item" style="display: flex; align-items: center;">
               节点名称：
-              <el-input
-                v-model="currentNode.label"
-                size="small"
-                style="width: 140px; margin-left: 10px;"
-                @change="updateNodeLabel"
-                @keyup.enter.native="updateNodeLabel"
-                placeholder="修改节点名称"
-              ></el-input>
+              <el-input v-model="currentNode.label" size="small" style="width: 140px; margin-left: 10px;" @change="updateNode" @keyup.enter.native="updateNode"></el-input>
+            </div>
+            <div class="info-item" style="display: flex; align-items: center;">
+              节点形状：
+              <el-select v-model="currentNode.shape" size="small" style="width: 140px; margin-left: 10px;" @change="updateNode">
+                <el-option label="圆形 (Circle)" value="circle"></el-option>
+                <el-option label="矩形 (Rect)" value="rect"></el-option>
+                <el-option label="三角形 (Triangle)" value="triangle"></el-option>
+                <el-option label="菱形 (Diamond)" value="diamond"></el-option>
+              </el-select>
+            </div>
+            <div class="info-item" style="display: flex; align-items: center;">
+              节点颜色：
+              <el-color-picker v-model="currentNode.color" size="small" style="margin-left: 10px;" @change="updateNode"></el-color-picker>
             </div>
             <div class="info-item">节点度数：<b>{{ currentNode.degree }}</b></div>
           </template>
@@ -73,21 +94,16 @@
           <template v-else-if="currentNode && currentNode.type === 'edge'">
             <div class="info-item" style="display: flex; align-items: center;">
               连线权重：
-              <el-input
-                v-model.number="currentNode.weight"
-                size="small"
-                style="width: 140px; margin-left: 10px;"
-                placeholder="请输入数字权重"
-                @change="updateEdgeWeight"
-                @keyup.enter.native="updateEdgeWeight"
-              ></el-input>
+              <el-input v-model.number="currentNode.weight" size="small" style="width: 140px; margin-left: 10px;" placeholder="请输入数字权重" @change="updateEdge" @keyup.enter.native="updateEdge"></el-input>
             </div>
-<!--            <div class="info-item">节点度数：<b>-</b></div>-->
+            <div class="info-item" style="display: flex; align-items: center;">
+              连线颜色：
+              <el-color-picker v-model="currentNode.color" size="small" style="margin-left: 10px;" @change="updateEdge"></el-color-picker>
+            </div>
           </template>
 
           <template v-else>
             <div class="info-item">当前选中：<b>未选中任何元素</b></div>
-<!--            <div class="info-item">节点度数：<b>-</b></div>-->
           </template>
         </el-card>
 
@@ -204,49 +220,62 @@ export default {
   methods: {
     // 1. 初始化核心画布
     initGraph() {
+      // ==================== 【实例化对齐线插件】 ====================
+      const snapLine = new G6.SnapLine({
+        line: { stroke: '#F56C6C', lineWidth: 1, lineDash: [5, 5] }, // 红色虚线
+        itemAlignType: 'center' // 按照节点中心对齐
+      });
       const container = document.getElementById('graph-container');
       this.graph = new G6.Graph({
         container: container,
         width: container.scrollWidth,
         height: container.scrollHeight || 600,
+        plugins: [snapLine],
         modes: {
-          // 【修改1】：去掉了 'click-select'，我们自己来控制选中！
-          default: ['drag-canvas', 'zoom-canvas', 'drag-node'],
+          // 【核心修改】：加入 'brush-select'，允许按住 Shift 键拖拽鼠标进行框选多选
+          default: ['drag-canvas', 'zoom-canvas', 'drag-node', {
+            type: 'brush-select',
+            trigger: 'shift', // 触发快捷键为 Shift
+            includeEdges: false // 框选时只选节点，不选线，方便对齐
+          }],
           addEdge: ['create-edge', 'drag-canvas', 'zoom-canvas']
         },
         defaultNode: {
           type: 'circle',
           size: 40,
-          style: { fill: '#C6E5FF', stroke: '#5B8FF9', lineWidth: 2, cursor: 'pointer' },
-          labelCfg: { style: { fill: '#333', fontSize: 14, fontWeight: 'bold' } }
+          // 初始默认颜色为浅蓝色 #C6E5FF
+          style: { fill: '#C6E5FF', stroke: null, cursor: 'pointer' },
+          labelCfg: { style: { fill: '#333', fontSize: 14, fontWeight: 'bold' } },
         },
+
         defaultEdge: {
           type: 'line',
-          label: '1', // 【关键】给每一条新创建出来的线一个默认权重 1
-          style: {
-            stroke: '#A3B1BF',
-            lineWidth: 2,
-            endArrow: true,
-            cursor: 'pointer',
-            lineAppendWidth: 15 // 保持这个隐形点击热区
-          },
-          // 【新增】配置权重文字显示的样式和位置
-          labelCfg: {
-            autoRotate: true, // 文字随连线角度自动旋转，不会倒着显示
-            refY: -10, // 文字距离连线本体向上偏移 10px，防止压线
-            style: { fill: '#333', fontSize: 13, fontWeight: 'bold' }
-          }
+          label: '1',
+          style: { stroke: '#A3B1BF', lineWidth: 2, endArrow: true, cursor: 'pointer', lineAppendWidth: 15 },
+          labelCfg: { autoRotate: true, refY: -10, style: { fill: '#333', fontSize: 13, fontWeight: 'bold' } },
         },
         nodeStateStyles: {
-          selected: { fill: '#9EC9FF', stroke: '#5B8FF9', lineWidth: 3 },
-          active: { fill: '#FFC069', stroke: '#FA8C16', lineWidth: 3 }
+          selected: {
+            fill: '#FFFFFF', // 掏空效果（纯白底，防止背景线条穿透）
+            stroke: '#C6E5FF', // 边框使用它原本的填充色
+            lineWidth: 4,
+            shadowColor: '#C6E5FF',
+            shadowBlur: 12
+          },
+          active: {
+            fill: '#FFFFFF',
+            stroke: '#C6E5FF',
+            lineWidth: 5,
+            shadowColor: '#C6E5FF',
+            shadowBlur: 15
+          }
         },
         edgeStateStyles: {
-          selected: { stroke: '#F56C6C', lineWidth: 3 }, // 选中边时变成红色，给用户强提示
-          active: { stroke: '#FA8C16', lineWidth: 3 }
+          // 默认线条的高亮，我们使用偏红/橙色作为未编辑时的警示色
+          selected: { stroke: '#A3B1BF', lineWidth: 3, shadowColor: '#A3B1BF', shadowBlur: 10 },
+          active: { stroke: '#A3B1BF', lineWidth: 4, shadowColor: '#A3B1BF', shadowBlur: 10 }
         }
       });
-
       // // 初始化测试数据
       // const initData = {
       //   nodes: [{ id: 'node1', label: 'V1', x: 200, y: 200 }, { id: 'node2', label: 'V2', x: 400, y: 200 }],
@@ -261,22 +290,23 @@ export default {
         this.updateGraphStats();
       });
 
-      // 1. 监听节点点击
+      // 1. 监听节点点击 (在 initGraph 方法内)
       this.graph.on('node:click', (e) => {
         if (this.isEdgeMode) return;
         this.clearAllSelected();
         this.graph.setItemState(e.item, 'selected', true);
 
         const item = e.item;
-        const totalEdges = item.getEdges().length;
-        const inEdges = item.getInEdges().length;
-        const outEdges = item.getOutEdges().length;
+        const model = item.getModel(); // 获取底层模型
 
         this.currentNode = {
-          id: item.getModel().id,
-          label: item.getModel().label, // 绑定到右侧输入框
-          degree: `${totalEdges} (入:${inEdges} 出:${outEdges})`,
-          type: 'node' // 【新增】：告诉右侧面板这是一个节点
+          id: model.id,
+          label: model.label,
+          type: 'node',
+          degree: `${item.getEdges().length} (入:${item.getInEdges().length} 出:${item.getOutEdges().length})`,
+          // 【新增】：抓取节点的形状和颜色反显到右侧面板
+          shape: model.type || 'circle',
+          color: (model.style && model.style.fill) || '#C6E5FF'
         };
       });
 
@@ -287,13 +317,14 @@ export default {
         this.graph.setItemState(e.item, 'selected', true);
 
         const item = e.item;
-        const model = item.getModel(); // 获取边的底层数据模型
+        const model = item.getModel();
 
         this.currentNode = {
           id: model.id,
-          // 【核心】：获取 G6 边的 label（即权重），如果没有，默认给个 1 字符串
           weight: model.label || '1',
-          type: 'edge' // 告诉面板这是一个边
+          type: 'edge',
+          // 【新增】：抓取连线的颜色反显
+          color: (model.style && model.style.stroke) || '#A3B1BF'
         };
       });
 
@@ -335,49 +366,144 @@ export default {
         });
       }
     },
-    updateNodeLabel() {
-      // 严谨校验：确保当前真的选中了一个节点，且输入框有值
+
+    updateNode() {
       if (!this.currentNode || this.currentNode.type !== 'node') return;
-      if (!this.currentNode.label) {
-        return this.$message.warning('节点名称不能为空');
-      }
-
-      // 1. 通过底层绝不重复的 ID 找到 G6 画布上的那个真实节点对象
       const item = this.graph.findById(this.currentNode.id);
-
       if (item) {
-        // 2. 核心 API：局部更新节点的属性（图会自动重绘这个节点）
+        // 定义一个标准的尺寸映射表，专门解决三角形显得太大的问题
+        const sizeMap = {
+          circle: 40,
+          rect: [40, 40],
+          diamond: [45, 45],
+          triangle: [25, 25] // 故意把三角形稍微缩小一点，视觉上就统一了
+        };
+
+        const currentColor = this.currentNode.color;
+        // 1. 先取消选中状态，清空旧缓存
+        this.graph.setItemState(item, 'selected', false);
+
+        // 2. 更新属性
         this.graph.updateItem(item, {
-          label: this.currentNode.label
+          label: this.currentNode.label,
+          type: this.currentNode.shape,
+          size: sizeMap[this.currentNode.shape] || 40,
+          style: {
+            fill: currentColor,
+            stroke: null
+          },
+          // 【核心统一】：编辑后的节点，选中时也是掏空填充，同色系边框发光
+          stateStyles: {
+            selected: {
+              fill: '#FFFFFF', // 掏空效果
+              stroke: currentColor, // 边框用当前颜色
+              lineWidth: 4,
+              shadowColor: currentColor,
+              shadowBlur: 12
+            },
+            active: {
+              fill: '#FFFFFF',
+              stroke: currentColor,
+              lineWidth: 5,
+              shadowColor: currentColor,
+              shadowBlur: 15
+            }
+          }
         });
-        this.$message.success('名称修改成功！');
+
+        // 3. 恢复选中状态
+        this.graph.setItemState(item, 'selected', true);
+        this.$message.success('节点属性修改成功！');
       }
     },
-    updateEdgeWeight() {
-      // 严谨校验：确保当前真的选中了一条边，且输入框有值
+
+    alignNodes(direction) {
+      // 1. 获取所有当前被选中的节点
+      const selectedNodes = this.graph.findAllByState('node', 'selected');
+      if (selectedNodes.length < 2) {
+        return this.$message.warning('请按住 Shift 键拖拽鼠标，框选至少 2 个节点进行对齐');
+      }
+
+      // 2. 提取所有选中节点的坐标
+      const xs = selectedNodes.map(node => node.getModel().x);
+      const ys = selectedNodes.map(node => node.getModel().y);
+
+      // 3. 根据对齐命令计算目标坐标
+      let targetX, targetY;
+      switch (direction) {
+        case 'top':
+          targetY = Math.min(...ys); // 找到最上面那个节点的 Y 坐标
+          selectedNodes.forEach(node => this.graph.updateItem(node, { y: targetY }));
+          break;
+        case 'bottom':
+          targetY = Math.max(...ys); // 找到最下面那个节点的 Y 坐标
+          selectedNodes.forEach(node => this.graph.updateItem(node, { y: targetY }));
+          break;
+        case 'left':
+          targetX = Math.min(...xs); // 找到最左边那个节点的 X 坐标
+          selectedNodes.forEach(node => this.graph.updateItem(node, { x: targetX }));
+          break;
+        case 'right':
+          targetX = Math.max(...xs); // 找到最右边那个节点的 X 坐标
+          selectedNodes.forEach(node => this.graph.updateItem(node, { x: targetX }));
+          break;
+        case 'center':
+          // 水平居中：取所有 X 坐标的平均值
+          targetX = xs.reduce((a, b) => a + b, 0) / xs.length;
+          selectedNodes.forEach(node => this.graph.updateItem(node, { x: targetX }));
+          break;
+      }
+      this.$message.success('对齐成功！');
+    },
+
+    updateEdge() {
       if (!this.currentNode || this.currentNode.type !== 'edge') return;
-
-      // 输入校验：因为权重在 Dijkstra 算法里必须是数字（通常是非负数）
       if (this.currentNode.weight === '' || isNaN(this.currentNode.weight)) {
-        this.$message.warning('连线权重必须是数字');
-        // 将输入框重置回画布上的旧值
-        const item = this.graph.findById(this.currentNode.id);
-        this.currentNode.weight = item.getModel().label;
-        return;
+        return this.$message.warning('连线权重必须是数字');
       }
 
-      // 1. 找到对应的真实连线对象
       const item = this.graph.findById(this.currentNode.id);
-
       if (item) {
-        // 2. 核心 API：局部更新边的属性 label（这里我们把它当作“权重”来用）
-        // 在存入底层前，最好转成字符串，防止 G6 警告
+        const currentColor = this.currentNode.color;
+
+        // 1. 先取消选中状态
+        this.graph.setItemState(item, 'selected', false);
+
+        // 2. 更新属性
         this.graph.updateItem(item, {
-          label: String(this.currentNode.weight)
+          type: 'line',
+          label: String(this.currentNode.weight),
+          style: {
+            stroke: currentColor,
+            lineWidth: 2,
+            endArrow: true,
+            cursor: 'pointer',
+            lineAppendWidth: 15,
+          },
+          labelCfg: { autoRotate: true, refY: -10, style: { fill: '#333', fontSize: 13, fontWeight: 'bold' } },
+          // 【核心统一】：编辑后的线条，纯粹的高亮，不改变任何其他形态
+          stateStyles: {
+            selected: {
+              stroke: currentColor,
+              lineWidth: 3,
+              shadowColor: currentColor,
+              shadowBlur: 10
+            },
+            active: {
+              stroke: currentColor,
+              lineWidth: 4,
+              shadowColor: currentColor,
+              shadowBlur: 10
+            }
+          }
         });
-        this.$message.success('连线权重修改成功！');
+
+        // 3. 恢复选中状态
+        this.graph.setItemState(item, 'selected', true);
+        this.$message.success('连线属性修改成功！');
       }
     },
+
     handleUpdateGraph() {
       // 组装提交对象：把老对象的属性展开（包含了ID、名字、备注等），然后用新的画板数据覆盖过去
       const submitData = {
