@@ -3,6 +3,57 @@
     <div class="toolbar">
       <el-button-group>
         <el-button type="primary" icon="el-icon-plus" size="small" @click="addNode">添加节点</el-button>
+        <el-button type="success" icon="el-icon-magic-stick" size="small" @click="openGenerateModel" plain>快捷生成模型</el-button>
+
+        <el-dialog title="快捷生成图模型" :visible.sync="generateModelOpen" width="450px" append-to-body>
+          <el-form ref="modelForm" :model="modelForm" label-width="110px">
+            <el-form-item label="模型类型">
+              <el-select v-model="modelForm.type" placeholder="请选择模型" style="width: 100%">
+                <el-option label="有向完全图" value="complete"></el-option>
+                <el-option label="星型图" value="star"></el-option>
+                <el-option label="环形图" value="ring"></el-option>
+                <el-option label="线性路径图" value="path"></el-option>
+                <el-option label="完全二叉树" value="binaryTree"></el-option>
+                <el-option label="N 叉树" value="naryTree"></el-option>
+                <el-option label="二维网格图" value="grid"></el-option>
+              </el-select>
+            </el-form-item>
+
+            <template v-if="modelForm.type === 'binaryTree'">
+              <el-form-item label="层数 (Layers)">
+                <el-input-number v-model="modelForm.layers" :min="1" :max="6" size="small"></el-input-number>
+                <div style="font-size: 12px; color: #909399;">{{ Math.pow(2, modelForm.layers) - 1 }} 个节点</div>
+              </el-form-item>
+            </template>
+
+            <template v-else-if="modelForm.type !== 'grid'">
+              <el-form-item label="节点总数 (N)">
+                <el-input-number v-model="modelForm.nodeCount" :min="3" :max="60" size="small"></el-input-number>
+              </el-form-item>
+            </template>
+
+            <template v-if="modelForm.type === 'naryTree'">
+              <el-form-item label="分支数 (N)">
+                <el-input-number v-model="modelForm.branchFactor" :min="3" :max="5" size="small"></el-input-number>
+                <span style="font-size: 12px; color: #909399; margin-left: 10px;">每个节点最多几个子节点</span>
+              </el-form-item>
+            </template>
+
+            <template v-if="modelForm.type === 'grid'">
+              <el-form-item label="行数 (Rows)">
+                <el-input-number v-model="modelForm.rows" :min="2" :max="10" size="small"></el-input-number>
+              </el-form-item>
+              <el-form-item label="列数 (Cols)">
+                <el-input-number v-model="modelForm.cols" :min="2" :max="10" size="small"></el-input-number>
+              </el-form-item>
+            </template>
+
+          </el-form>
+          <div slot="footer" class="dialog-footer">
+            <el-button type="primary" @click="submitGenerateModel">立即生成</el-button>
+            <el-button @click="generateModelOpen = false">取 消</el-button>
+          </div>
+        </el-dialog>
         <el-button
           :type="isEdgeMode ? 'success' : 'primary'"
           icon="el-icon-share"
@@ -205,6 +256,14 @@ export default {
       },
       currentGraphDetail: null, // 如果是从【我的图库】跳转来，存图库详情
       currentCaseDetail: null,  // 如果是从【教学案例】跳转来，存案例详情
+      generateModelOpen: false,
+      modelForm: {
+        type: 'complete',
+        nodeCount: 6,
+        branchFactor: 3, // N叉树专属
+        rows: 4,         // 网格图专属
+        cols: 5          // 网格图专属
+      },
     };
   },
   created() {
@@ -832,6 +891,140 @@ export default {
       // 抹掉所有的橙色
       this.graph.getNodes().forEach(node => this.graph.clearItemStates(node, ['active']));
       this.graph.getEdges().forEach(edge => this.graph.clearItemStates(edge, ['active']));
+    },
+    openGenerateModel() {
+      if (this.graph.getNodes().length > 0) {
+        this.$confirm('快捷生成将会清空当前画布的数据，是否继续？', '提示', { type: 'warning' })
+          .then(() => { this.generateModelOpen = true; })
+          .catch(() => {});
+      } else {
+        this.generateModelOpen = true;
+      }
+    },
+
+    submitGenerateModel() {
+      const { type, nodeCount, layers, branchFactor, rows, cols } = this.modelForm;
+      const data = { nodes: [], edges: [] };
+      const centerX = 400;
+      const centerY = 300;
+
+      // 1. 确定最终节点数量
+      let finalNodeCount = nodeCount;
+      if (type === 'binaryTree') {
+        finalNodeCount = Math.pow(2, layers) - 1; // 满二叉树节点数公式
+      } else if (type === 'grid') {
+        finalNodeCount = rows * cols;
+      }
+
+      // 2. 生成节点坐标
+      if (['complete', 'star', 'ring'].includes(type)) {
+        const radius = 100 + (finalNodeCount * 5);
+        for (let i = 0; i < finalNodeCount; i++) {
+          const angle = (2 * Math.PI / finalNodeCount) * i;
+          data.nodes.push({
+            id: `node_gen_${i}`,
+            label: `V${i + 1}`,
+            x: (type === 'star' && i === 0) ? centerX : centerX + radius * Math.cos(angle),
+            y: (type === 'star' && i === 0) ? centerY : centerY + radius * Math.sin(angle),
+          });
+        }
+      }
+      else if (type === 'path') {
+        const spacing = 80;
+        const startX = centerX - ((finalNodeCount - 1) * spacing) / 2;
+        for (let i = 0; i < finalNodeCount; i++) {
+          data.nodes.push({ id: `node_gen_${i}`, label: `V${i + 1}`, x: startX + i * spacing, y: centerY });
+        }
+      }
+      else if (['binaryTree', 'naryTree'].includes(type)) {
+        const N = type === 'binaryTree' ? 2 : branchFactor;
+        const layerInfo = [];
+        const depthCount = {};
+
+        for (let i = 0; i < finalNodeCount; i++) {
+          const depth = i === 0 ? 0 : layerInfo[Math.floor((i - 1) / N)].depth + 1;
+          if (depthCount[depth] === undefined) depthCount[depth] = 0;
+          layerInfo.push({ depth: depth, indexInLayer: depthCount[depth] });
+          depthCount[depth]++;
+        }
+
+        const maxDepth = Math.max(...Object.keys(depthCount).map(Number));
+        const treeWidth = Math.min(600, finalNodeCount * 40);
+        const startY = centerY - (maxDepth * 80) / 2;
+
+        for (let i = 0; i < finalNodeCount; i++) {
+          const info = layerInfo[i];
+          const spacingX = treeWidth / (depthCount[info.depth] + 1);
+          data.nodes.push({
+            id: `node_gen_${i}`, label: `V${i + 1}`,
+            x: (centerX - treeWidth / 2) + spacingX * (info.indexInLayer + 1),
+            y: startY + info.depth * 80
+          });
+        }
+      }
+      else if (type === 'grid') {
+        const spacing = 80;
+        const startX = centerX - ((cols - 1) * spacing) / 2;
+        const startY = centerY - ((rows - 1) * spacing) / 2;
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const i = r * cols + c;
+            data.nodes.push({ id: `node_gen_${i}`, label: `V${i + 1}`, x: startX + c * spacing, y: startY + r * spacing });
+          }
+        }
+      }
+
+      // 3. 生成连线关系
+      if (type === 'complete') {
+        // 【修改点】：有向完全图，每个顶点对之间生成两条相反方向的边
+        for (let i = 0; i < finalNodeCount; i++) {
+          for (let j = 0; j < finalNodeCount; j++) {
+            if (i !== j) {
+              data.edges.push({ source: `node_gen_${i}`, target: `node_gen_${j}`, label: '1' });
+            }
+          }
+        }
+        G6.Util.processParallelEdges(data.edges, 30, 'quadratic', 'loop');
+      }
+      else if (type === 'star') {
+        for (let i = 1; i < finalNodeCount; i++) {
+          data.edges.push({ source: `node_gen_0`, target: `node_gen_${i}`, label: '1' });
+        }
+      }
+      else if (type === 'ring') {
+        for (let i = 0; i < finalNodeCount; i++) {
+          data.edges.push({ source: `node_gen_${i}`, target: `node_gen_${(i + 1) % finalNodeCount}`, label: '1' });
+        }
+      }
+      else if (type === 'path') {
+        for (let i = 0; i < finalNodeCount - 1; i++) {
+          data.edges.push({ source: `node_gen_${i}`, target: `node_gen_${i + 1}`, label: '1' });
+        }
+      }
+      else if (['binaryTree', 'naryTree'].includes(type)) {
+        const N = type === 'binaryTree' ? 2 : branchFactor;
+        for (let i = 1; i < finalNodeCount; i++) {
+          const parentIndex = Math.floor((i - 1) / N);
+          data.edges.push({ source: `node_gen_${parentIndex}`, target: `node_gen_${i}`, label: '1' });
+        }
+      }
+      else if (type === 'grid') {
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const i = r * cols + c;
+            if (c < cols - 1) data.edges.push({ source: `node_gen_${i}`, target: `node_gen_${i + 1}`, label: '1' });
+            if (r < rows - 1) data.edges.push({ source: `node_gen_${i}`, target: `node_gen_${i + cols}`, label: '1' });
+          }
+        }
+      }
+
+      // 4. 执行渲染
+      this.graph.clear();
+      this.graph.read(data);
+      this.updateGraphStats();
+      this.nodeCounter = finalNodeCount;
+      this.generateModelOpen = false;
+      this.$message.success(`模型生成成功：共 ${finalNodeCount} 个节点，${data.edges.length} 条边`);
     }
   }
 };
